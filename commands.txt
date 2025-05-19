@@ -1,0 +1,4 @@
+run - ./mvnw spring-boot:run
+envs - mvn clean install
+
+swagger(local) - http://localhost:8080/swagger-ui/index.html
