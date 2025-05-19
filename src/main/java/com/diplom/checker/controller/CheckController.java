@@ -1,24 +1,37 @@
 package com.diplom.checker.controller;
 
-import com.diplom.checker.model.CheckResult;
-import org.apache.poi.xwpf.usermodel.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.languagetool.JLanguageTool;
 import org.languagetool.language.Russian;
 import org.languagetool.rules.RuleMatch;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.diplom.checker.model.CheckResult;
 
 @RestController
 @RequestMapping("/api")
@@ -131,5 +144,10 @@ public class CheckController {
                 new ArrayList<>(mistakes),
                 brokenLinks
         );
+    }
+
+    @GetMapping("/echo")
+    public String echo(@RequestParam("word") String word) {
+        return word;
     }
 }
