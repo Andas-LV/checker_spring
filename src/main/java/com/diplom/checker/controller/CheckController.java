@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "*")
 public class CheckController {
 
     @PostMapping(value = "/check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
