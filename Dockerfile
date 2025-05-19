@@ -8,4 +8,4 @@ FROM openjdk:21-jdk-slim
 COPY --from=build /target/checker-0.0.1-SNAPSHOT.jar checker.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "checker.jar --server.port=${PORT}"]
+ENTRYPOINT ["java", "-jar", "checker.jar"]
