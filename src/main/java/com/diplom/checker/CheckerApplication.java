@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.servers.Server;
 
 @OpenAPIDefinition(
   servers = {
-    // относительный URL: Swagger UI будет брать текущий хост и протокол
     @Server(url = "/", description = "Default Server URL")
   }
 )
