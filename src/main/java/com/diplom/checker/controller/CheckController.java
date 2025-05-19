@@ -27,6 +27,8 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.languagetool.JLanguageTool;
 import org.languagetool.language.Russian;
 import org.languagetool.rules.RuleMatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -39,17 +41,29 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.diplom.checker.model.CheckResult;
 
+/**
+ * Контроллер проверки документов и эхо-сервис.
+ */
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class CheckController {
+    private static final Logger logger = LoggerFactory.getLogger(CheckController.class);
 
-    // Флаг для включения/отключения проверки ссылок
-    @Value("${app.checkLinks:false}")
+    // Спец-флаг для включения/отключения проверки ссылок (можно отключить в проде во избежание долгих запросов)
+    @Value("${app.checkLinks:true}")
     private boolean checkLinks;
 
+    // Раз инициализируем LanguageTool при старте приложения
+    private final JLanguageTool langTool;
+
+    public CheckController() throws IOException {
+        this.langTool = new JLanguageTool(new Russian());
+        logger.info("LanguageTool initialized with {} rules", langTool.getAllActiveRules().size());
+    }
+
     /**
-     * Эхо-эндпоинт: просто возвращает переданное слово.
+     * Эхо-эндпоинт.
      */
     @GetMapping("/echo")
     public String echo(@RequestParam("word") String word) {
@@ -57,73 +71,62 @@ public class CheckController {
     }
 
     /**
-     * Основной эндпоинт для проверки DOCX и PDF.
-     * Возвращает информацию о шрифте, размере, количестве слов, орфографические ошибки и сломанные ссылки.
+     * Основной эндпоинт проверки DOCX/PDF.
      */
     @PostMapping(value = "/check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CheckResult checkFile(@RequestParam("file") MultipartFile file) throws Exception {
+        logger.info("Received file '{}' of size {} bytes", file.getOriginalFilename(), file.getSize());
+
         Map<String, Integer> fontCount = new HashMap<>();
         Map<Integer, Integer> fontSizeCount = new HashMap<>();
         StringBuilder fullText = new StringBuilder();
 
         String filename = file.getOriginalFilename();
         if (filename != null && filename.toLowerCase().endsWith(".pdf")) {
-            // PDF-ветка
+            // PDF branch
             try (PDDocument pdf = PDDocument.load(file.getInputStream())) {
                 PDFTextStripper stripper = new PDFTextStripper() {
                     @Override
                     protected void writeString(String text, List<TextPosition> positions) throws IOException {
                         for (TextPosition pos : positions) {
-                            String fontName = pos.getFont().getName();
-                            fontCount.merge(fontName, 1, Integer::sum);
-                            int sizePt = Math.round(pos.getFontSizeInPt());
-                            fontSizeCount.merge(sizePt, 1, Integer::sum);
+                            fontCount.merge(pos.getFont().getName(), 1, Integer::sum);
+                            fontSizeCount.merge(Math.round(pos.getFontSizeInPt()), 1, Integer::sum);
                         }
-                        fullText.append(text).append(" ");
+                        fullText.append(text).append(' ');
                     }
                 };
                 stripper.getText(pdf);
             }
         } else {
-            // DOCX-ветка
+            // DOCX branch
             try (InputStream is = file.getInputStream()) {
                 XWPFDocument doc = new XWPFDocument(is);
                 for (XWPFParagraph para : doc.getParagraphs()) {
                     for (XWPFRun run : para.getRuns()) {
-                        String fontName = run.getFontFamily();
-                        if (fontName != null) {
-                            fontCount.merge(fontName, 1, Integer::sum);
+                        Optional.ofNullable(run.getFontFamily())
+                                .ifPresent(f -> fontCount.merge(f, 1, Integer::sum));
+                        if (run.getFontSize() > 0) {
+                            fontSizeCount.merge(run.getFontSize(), 1, Integer::sum);
                         }
-                        int size = run.getFontSize();
-                        if (size > 0) {
-                            fontSizeCount.merge(size, 1, Integer::sum);
-                        }
-                        String text = run.text();
-                        if (text != null) {
-                            fullText.append(text).append(" ");
-                        }
+                        Optional.ofNullable(run.text())
+                                .ifPresent(t -> fullText.append(t).append(' '));
                     }
                 }
             }
         }
 
-        // Определяем наиболее часто используемые шрифт и размер
+        // Determine main font and size
         String mainFont = fontCount.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey)
                 .orElse("unknown");
         int mainFontSize = fontSizeCount.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
+                .max(Map.Entry.comparingByValue()).map(Map.Entry::getKey)
                 .orElse(-1);
 
         String text = fullText.toString();
-
-        // Подсчет слов
         int wordCount = text.isBlank() ? 0 : text.trim().split("\\s+").length;
 
-        // Орфография (LanguageTool)
-        JLanguageTool langTool = new JLanguageTool(new Russian());
+        // Spelling check
         List<RuleMatch> matches = langTool.check(text);
         Set<String> mistakes = new HashSet<>();
         for (RuleMatch m : matches) {
@@ -131,7 +134,7 @@ public class CheckController {
             if (!bad.isEmpty()) mistakes.add(bad);
         }
 
-        // Проверка ссылок (опционально)
+        // Link checking optionally
         List<String> brokenLinks = new ArrayList<>();
         if (checkLinks) {
             Pattern urlPattern = Pattern.compile("\\bhttps?://[^\\s]+", Pattern.CASE_INSENSITIVE);
@@ -140,8 +143,8 @@ public class CheckController {
             while (urlMatcher.find()) {
                 allLinks.add(urlMatcher.group());
             }
-            // Выполняем запросы в параллели, чтоб не блокировать на долго
-            ExecutorService pool = Executors.newFixedThreadPool(10);
+            // Parallel HEAD requests with timeouts
+            ExecutorService pool = Executors.newFixedThreadPool(8);
             List<CompletableFuture<Optional<String>>> futures = new ArrayList<>();
             for (String link : allLinks) {
                 futures.add(CompletableFuture.supplyAsync(() -> {
@@ -152,27 +155,24 @@ public class CheckController {
                         conn.setReadTimeout(1000);
                         int code = conn.getResponseCode();
                         return (code < 200 || code >= 400) ? Optional.of(link) : Optional.empty();
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         return Optional.of(link);
                     }
                 }, pool));
             }
             for (CompletableFuture<Optional<String>> future : futures) {
                 try {
-                    future.orTimeout(2, TimeUnit.SECONDS)
-                           .thenAccept(opt -> opt.ifPresent(brokenLinks::add))
-                           .get(3, TimeUnit.SECONDS);
+                    Optional<String> res = future.get(2, TimeUnit.SECONDS);
+                    res.ifPresent(brokenLinks::add);
                 } catch (Exception ignore) {}
             }
             pool.shutdown();
         }
 
-        return new CheckResult(
-                mainFont,
-                mainFontSize,
-                wordCount,
-                new ArrayList<>(mistakes),
-                brokenLinks
-        );
+        CheckResult result = new CheckResult(mainFont, mainFontSize, wordCount,
+                new ArrayList<>(mistakes), brokenLinks);
+        logger.info("Returning CheckResult: font={}, size={}, words={}, mistakes={}, brokenLinks={}",
+                mainFont, mainFontSize, wordCount, mistakes.size(), brokenLinks.size());
+        return result;
     }
 }
