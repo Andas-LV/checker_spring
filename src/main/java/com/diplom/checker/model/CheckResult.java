@@ -9,19 +9,26 @@ public class CheckResult {
     private List<String> mistakes;
     private List<String> brokenLinks;
     private boolean hasReferences;
+    private int imageCount;
+    private int imagesWithCaption;
 
     public CheckResult(String font,
                        int fontSize,
                        int wordCount,
                        List<String> mistakes,
                        List<String> brokenLinks,
-                       boolean hasReferences) {
+                       boolean hasReferences,
+                       int imageCount,
+                       int imagesWithCaption
+                       ) {
         this.font = font;
         this.fontSize = fontSize;
         this.wordCount = wordCount;
         this.mistakes = mistakes;
         this.brokenLinks = brokenLinks;
         this.hasReferences = hasReferences;
+        this.imageCount = imageCount;
+        this.imagesWithCaption = imagesWithCaption;
     }
 
     public String getFont() { return font; }
@@ -41,4 +48,20 @@ public class CheckResult {
 
     public boolean isHasReferences() {return hasReferences;}
     public void setHasReferences(boolean hasReferences) {this.hasReferences = hasReferences;}
+
+    public int getImageCount() {
+        return imageCount;
+    }
+
+    public void setImageCount(int imageCount) {
+        this.imageCount = imageCount;
+    }
+
+    public int getImagesWithCaption() {
+        return imagesWithCaption;
+    }
+
+    public void setImagesWithCaption(int imagesWithCaption) {
+        this.imagesWithCaption = imagesWithCaption;
+    }
 }

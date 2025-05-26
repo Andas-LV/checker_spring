@@ -17,6 +17,10 @@ public class AuthController {
     @Autowired private UserRepository users;
     @Autowired private PasswordEncoder encoder;
 
+    @CrossOrigin(origins = {
+            "http://localhost:5173",
+            "http://localhost:5174",
+    })
     @PostMapping("/register")
     public User register(@RequestBody Map<String,String> r, HttpSession session) {
         if (users.findByEmail(r.get("email")).isPresent()) {
@@ -31,6 +35,10 @@ public class AuthController {
         return u;
     }
 
+    @CrossOrigin(origins = {
+            "http://localhost:5173",
+            "http://localhost:5174",
+    })
     @PostMapping("/login")
     public User login(@RequestBody Map<String,String> r, HttpSession session) {
         User u = users.findByEmail(r.get("email"))
@@ -41,7 +49,10 @@ public class AuthController {
         session.setAttribute("userId", u.getId());
         return u;
     }
-
+    @CrossOrigin(origins = {
+            "http://localhost:5173",
+            "http://localhost:5174",
+    })
     @GetMapping("/user/me")
     public User me(HttpSession session) {
         Object id = session.getAttribute("userId");
