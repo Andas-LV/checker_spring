@@ -1,7 +1,7 @@
-package com.diplom.checker.controller;
+package com.diplom.checker.features.user.controller;
 
-import com.diplom.checker.model.User;
-import com.diplom.checker.repository.UserRepository;
+import com.diplom.checker.features.user.model.User;
+import com.diplom.checker.features.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,10 +17,7 @@ public class AuthController {
     @Autowired private UserRepository users;
     @Autowired private PasswordEncoder encoder;
 
-    @CrossOrigin(origins = {
-            "http://localhost:5173",
-            "http://localhost:5174",
-    })
+    @CrossOrigin(origins = {"*"})
     @PostMapping("/register")
     public User register(@RequestBody Map<String,String> r, HttpSession session) {
         if (users.findByEmail(r.get("email")).isPresent()) {
@@ -35,10 +32,7 @@ public class AuthController {
         return u;
     }
 
-    @CrossOrigin(origins = {
-            "http://localhost:5173",
-            "http://localhost:5174",
-    })
+    @CrossOrigin(origins = {"*"})
     @PostMapping("/login")
     public User login(@RequestBody Map<String,String> r, HttpSession session) {
         User u = users.findByEmail(r.get("email"))
@@ -49,10 +43,8 @@ public class AuthController {
         session.setAttribute("userId", u.getId());
         return u;
     }
-    @CrossOrigin(origins = {
-            "http://localhost:5173",
-            "http://localhost:5174",
-    })
+
+    @CrossOrigin(origins = {"*"})
     @GetMapping("/user/me")
     public User me(HttpSession session) {
         Object id = session.getAttribute("userId");

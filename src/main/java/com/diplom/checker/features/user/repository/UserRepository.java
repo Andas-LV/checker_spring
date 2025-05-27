@@ -1,6 +1,6 @@
-package com.diplom.checker.repository;
+package com.diplom.checker.features.user.repository;
 
-import com.diplom.checker.model.User;
+import com.diplom.checker.features.user.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

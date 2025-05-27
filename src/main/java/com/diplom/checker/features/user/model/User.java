@@ -1,4 +1,4 @@
-package com.diplom.checker.model;
+package com.diplom.checker.features.user.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
